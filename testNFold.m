@@ -1,6 +1,6 @@
 clc;
 clear all;
-close all;
+% close all;
 
 addpath('scripts');
 
@@ -13,7 +13,7 @@ m = 1.0;  % Total mass of the chain of pendulums
 lengths = L/n * ones(n,1);  % Uniform lengths of pendulums
 masses = m/n * ones(n,1);  % Uniform masses of pendulums
 g = 9.81;  % Gravitational acceleration
-t0 = 0; tf = 10; N_imp = 3000; N_ie = 10000; % Time range and steps
+t0 = 0; tf = 100; N_imp = 10000; N_ie = 10000; % Time range and steps
 
 %Initial conditions
 initial_theta = (7*pi/6) * ones(n, 1);
