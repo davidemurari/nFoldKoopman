@@ -1,5 +1,15 @@
-X = sol_trpz(:,1:3000);
-Y = sol_trpz(:,2:3001);
+addpath('scripts');
+
+n_samples = 1000;
+n_pendula = 4;
+n_steps = 11;
+h = 0.01;
+plb = -2; %Lower bound for the interval where momenta are sampled
+pub = 2; %Upper bound for the interval where momenta are sampled
+
+[X,Y] = generateDataMontecarlo(n_samples, n_pendula, n_steps, h, plb, pub);
+%X = sol_trpz(:,1:3000);
+%Y = sol_trpz(:,2:3001);
 
 %% MATRIX-BASED APPROACH
 
@@ -10,14 +20,15 @@ Y = sol_trpz(:,2:3001);
 
 %% Build matrix using delay embedding
 N = 10; % number of basis functions
-M = 2000; % number of data points
-PX = zeros(M,N*10);
-PY = zeros(M,N*10);
-h = 5; % number of time steps for delay
+M = 5000; % number of data points
+dim_sol = 2*n_pendula;
+PX = zeros(M,N*dim_sol);
+PY = zeros(M,N*dim_sol);
+h = 1; % number of time steps for delay
 
 for jj= 1:N
-    PX(:,(jj-1)*10+1:jj*10) = transpose(X(:,(1:M)+(jj-1)*h));
-    PY(:,(jj-1)*10+1:jj*10) = transpose(Y(:,(1:M)+(jj-1)*h));
+    PX(:,(jj-1)*dim_sol+1:jj*dim_sol) = transpose(X(:,(1:M)+(jj-1)*h));
+    PY(:,(jj-1)*dim_sol+1:jj*dim_sol) = transpose(Y(:,(1:M)+(jj-1)*h));
 end
 
 K = PX\PY;
@@ -53,7 +64,7 @@ TH2 = -pi:0.005:pi;                     % angles for spectral measure
 epsilon = 0.05;                         % smoothing parameter
 order = 6;                              % order of kernel
 
-sig = X(6,1:M);
+sig = X(n_pendula+1,1:M);
 sig = sig - mean(sig);
 g_coeffs = PX\transpose(sig); % cofficients of g in dictionary expansion
 
