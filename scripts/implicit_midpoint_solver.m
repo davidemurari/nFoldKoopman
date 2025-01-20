@@ -24,17 +24,21 @@ function [z,energy,is_not_converged]=implicit_midpoint_solver(XH, H, z0, t0, tf,
     energy(1) = H(z0);
     
     % Options for fsolve
-    options = optimoptions('fsolve', 'TolFun', 1e-10, 'TolX', 1e-10, 'Display', 'none');
-    
+    options = optimoptions('fsolve', 'TolFun', 1e-8, 'TolX', 1e-8, 'Display', 'none');
+    substeps = floor(h/0.01); %Number of substeps done to generate a data point
     % Implicit midpoint method loop
     for n = 1:N
         % Define the nonlinear system to solve
-        system = @(mid) mid - z(:,n) - h * XH(0.5*(mid+z(:,n)));
-        [z(:, n+1), ~, exitflag] = fsolve(system, z(:,n), options);
-        if exitflag<=0
-            is_not_converged = 1;
-            break
+        supp = z(:,n);
+        for it = 1:substeps
+            system = @(mid) mid - supp - h/substeps * XH(0.5*(mid+supp));
+            [supp, ~, exitflag] = fsolve(system, supp, options);
+            if exitflag<=0
+                is_not_converged = 1;
+                break
+            end
         end
+        z(:,n+1) = supp;
         energy(n+1) = H(z(:,n+1));
     end
    

@@ -1,9 +1,9 @@
 addpath('scripts');
 
-n_samples = 1000;
+n_samples = 100;
 n_pendula = 4;
 n_steps = 11;
-h = 0.01;
+h = 0.05; %to generate a data point the method will do floor(h/0.01) substeps
 plb = -2; %Lower bound for the interval where momenta are sampled
 pub = 2; %Upper bound for the interval where momenta are sampled
 
@@ -20,7 +20,7 @@ pub = 2; %Upper bound for the interval where momenta are sampled
 
 %% Build matrix using delay embedding
 N = 10; % number of basis functions
-M = 5000; % number of data points
+M = 500; % number of data points
 dim_sol = 2*n_pendula;
 PX = zeros(M,N*dim_sol);
 PY = zeros(M,N*dim_sol);
