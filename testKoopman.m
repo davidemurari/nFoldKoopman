@@ -11,7 +11,7 @@ addpath('scripts');
 % %X = sol_trpz(:,1:3000);
 % %Y = sol_trpz(:,2:3001);
 
-n_pendula = 50;
+n_pendula = 10;
 n_samples = 100;
 n_steps = 1;
 
@@ -20,6 +20,12 @@ X = readmatrix(filename);
 filename = sprintf('Y_data_%d_pendula_%d_samples.csv', n_pendula, n_samples); % if N is defined
 Y = readmatrix(filename);
 
+idx = max(abs(Y), [], 1) < 10 & ~any(isnan(Y), 1); %I am using this as a criterion for a converged solution
+
+X = X(:, idx);
+Y = Y(:, idx); %remove the non converged solutions
+
+n_samples = size(X,2); 
 
 %% MATRIX-BASED APPROACH
 
@@ -31,7 +37,7 @@ Y = readmatrix(filename);
 %% Build matrix using delay embedding
 N = 1; % number of basis functions
 M = size(X,2)-N; % number of data points
-dim_sol = 4*n_pendula;
+dim_sol = 2*n_pendula;
 PX = zeros(M,N*dim_sol);
 PY = zeros(M,N*dim_sol);
 h = 1; % number of time steps for delay
