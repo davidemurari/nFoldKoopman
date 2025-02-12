@@ -12,7 +12,7 @@ addpath('scripts');
 % %Y = sol_trpz(:,2:3001);
 
 n_pendula = 10;
-n_samples = 100;
+n_samples = 500;
 n_steps = 1;
 
 filename = sprintf('X_data_%d_pendula_%d_samples.csv', n_pendula, n_samples); % if N is defined
@@ -25,7 +25,8 @@ idx = max(abs(Y), [], 1) < 10 & ~any(isnan(Y), 1); %I am using this as a criteri
 X = X(:, idx);
 Y = Y(:, idx); %remove the non converged solutions
 
-n_samples = size(X,2); 
+n_samples = size(Y,2); 
+disp(n_samples)
 
 %% MATRIX-BASED APPROACH
 
