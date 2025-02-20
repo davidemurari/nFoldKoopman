@@ -147,39 +147,47 @@ function [X, P, H] = rattle_simple_pendulum(dt, T, x0, p0, m, l, g)
 end
 
 % Simulation setup
-N = 50;
+N = 5;
 L = 1;
 M = 1;
 g = 9.81;
 dt = 5e-4;
-final = 1.;
-T = 0.2; %floor(final/dt)*dt;
+T = 0.05; %floor(final/dt)*dt;
 l = L / N; %* ones(N, 1);
 m = M / N; %* ones(N, 1);
 
 number_samples = 100;
 
-X_data = zeros(2*N,number_samples);
-Y_data = zeros(2*N,number_samples);
+X_data = zeros(4*N,number_samples);
+Y_data = zeros(4*N,number_samples);
 
 for it = 1:number_samples
 
-    qq = 2*rand(N,2)-1;
-    qq = l * (qq ./ vecnorm(qq,2,2)); %l2 norm row-wise
-    qq = cumsum(qq,1);
-    qq = reshape(qq.',1,[])'; %write as a single column stacking the rows
+    %qq = 2*rand(N,2)-1;
+    %qq = l * (qq ./ vecnorm(qq,2,2)); %l2 norm row-wise
+    %qq = cumsum(qq,1);
+    %qq = reshape(qq.',1,[])'; %write as a single column stacking the rows
     
-    pp = zeros(2*N,1);
-    J = randn(2,2);
-    J = (J-J')/2;
-    pp(1:2) = J * qq(1:2);
-    for i = 1:N-1
-        J = randn(2,2);
-        J = (J-J')/2;
-        v = (qq(2*i+1:2*i+2) - qq(2*i-1:2*i));
+    %pp = zeros(2*N,1);
+    %J = randn(2,2);
+    %J = (J-J')/2;
+    %pp(1:2) = J * qq(1:2);
+    %for i = 1:N-1
+    %    J = randn(2,2);
+    %    J = (J-J')/2;
+    %    v = (qq(2*i+1:2*i+2) - qq(2*i-1:2*i));
     
-        pp(2*i+1:2*i+2) = J * v + pp(2*i-1:2*i);
-    end
+    %    pp(2*i+1:2*i+2) = J * v + pp(2*i-1:2*i);
+    %end
+
+    theta = 2*pi*rand(N,1);
+    omega = 2*rand(N,1)-1;
+    qq = cumsum(l*[sin(theta),-cos(theta)])';
+    pp = m * cumsum(l*[omega .* cos(theta), omega .* sin(theta)])';
+
+    qq = qq(:);
+    pp = pp(:);
+
     % Initial conditions (hanging vertically at rest)
     %x0 = [0; -l(1); l(2)*sin(pi/4); -l(1)-l(2)*cos(pi/4)];
     %x0 = kron(cumsum(l*ones(N,1)),[cos(pi/12);sin(pi/12)]);
@@ -216,8 +224,8 @@ for it = 1:number_samples
     [X, P, H] = rattle_simple_pendulum(dt, T, qq, pp, m, l, g);
     toc
     disp(['progress bar: ' num2str(100*it/number_samples) '%'])
-    X_data(:,it) = X(:,1);
-    Y_data(:,it) = X(:,end);
+    X_data(:,it) = [X(:,1);P(:,1)];
+    Y_data(:,it) = [X(:,end);P(:,end)];
 end
 
 filename = sprintf('X_data_%d_pendula_%d_samples.csv', N,number_samples);

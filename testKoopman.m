@@ -11,8 +11,8 @@ addpath('scripts');
 % %X = sol_trpz(:,1:3000);
 % %Y = sol_trpz(:,2:3001);
 
-n_pendula = 10;
-n_samples = 500;
+n_pendula = 5;
+n_samples = 10000;
 n_steps = 1;
 
 filename = sprintf('X_data_%d_pendula_%d_samples.csv', n_pendula, n_samples); % if N is defined
@@ -36,19 +36,29 @@ disp(n_samples)
 % R = (sqrt(real(diag(W2'*L*W2)./diag(W2'*W2)-abs(LAM).^2))); % dual residual - warning, not L^2 residual
 
 %% Build matrix using delay embedding
-N = 1; % number of basis functions
-M = size(X,2)-N; % number of data points
-dim_sol = 2*n_pendula;
-PX = zeros(M,N*dim_sol);
-PY = zeros(M,N*dim_sol);
-h = 1; % number of time steps for delay
-
-for jj= 1:N
-    PX(:,(jj-1)*dim_sol+1:jj*dim_sol) = transpose(X(:,(1:M)+(jj-1)*h));
-    PY(:,(jj-1)*dim_sol+1:jj*dim_sol) = transpose(Y(:,(1:M)+(jj-1)*h));
-end
-
+% N = 1; % number of basis functions
+% M = size(X,2)-N; % number of data points
+% dim_sol = 4*n_pendula;
+% PX = zeros(M,N*dim_sol);
+% PY = zeros(M,N*dim_sol);
+% h = 1; % number of time steps for delay
+% 
+% for jj= 1:N
+%     PX(:,(jj-1)*dim_sol+1:jj*dim_sol) = transpose(X(:,(1:M)+(jj-1)*h));
+%     PY(:,(jj-1)*dim_sol+1:jj*dim_sol) = transpose(Y(:,(1:M)+(jj-1)*h));
+% end
+% 
+% % PX = X(:,1:end-1)';
+% % PY = Y(:,1:end-1)';
+% 
+% disp(["Size PX: " size(PX)])
+% disp(["Size PY: " size(PY)])
+% 
+PX = X(:,1:end-1)';
+PY = Y(:,1:end-1)';
 K = PX\PY;
+
+disp(["Norm DMD approximation : " num2str(norm(K,2))])
 [V,LAM] = eig(K,'vector');
 R = vecnorm(PY*V-PX*V*diag(LAM))./vecnorm(PX*V); % L^2 residual
 
