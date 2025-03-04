@@ -11,12 +11,12 @@ pub = 2; %Upper bound for the interval where momenta are sampled
 % %X = sol_trpz(:,1:3000);
 % %Y = sol_trpz(:,2:3001);
 
-n_pendula = 3;
-n_samples = 5000;
+n_pendula = 2;
+n_samples = 100;
 n_steps = 5;
 
 data =generateDataMontecarlo(n_samples, n_pendula, n_steps, h, plb, pub);
-% return
+return
 
 % filename = sprintf('X_data_%d_pendula_%d_samples.csv', n_pendula, n_samples); % if N is defined
 % X = readmatrix(filename);
@@ -41,16 +41,16 @@ data =generateDataMontecarlo(n_samples, n_pendula, n_steps, h, plb, pub);
 % R = (sqrt(real(diag(W2'*L*W2)./diag(W2'*W2)-abs(LAM).^2))); % dual residual - warning, not L^2 residual
 
 %% Build matrix using delay embedding
-N = n_steps; % number of basis functions
+N = 1; % number of basis functions
 M = n_samples; % number of data points
 dim_sol = 2*n_pendula;
 PX = zeros(M,N*dim_sol);
 PY = zeros(M,N*dim_sol);
 % h = 1; % number of time steps for delay
-% data = zeros(n_samples, n_steps + 1, 2 * n_pendula);
+% 
 for jj= 1:N
-    PX(:,(jj-1)*dim_sol+1:jj*dim_sol) = squeeze(data(:,jj,:));
-    PY(:,(jj-1)*dim_sol+1:jj*dim_sol) = squeeze(data(:,jj+1,:));
+    PX(:,(jj-1)*dim_sol+1:jj*dim_sol) = transpose(X(:,(1:M)+(jj-1)*h));
+    PY(:,(jj-1)*dim_sol+1:jj*dim_sol) = transpose(Y(:,(1:M)+(jj-1)*h));
 end
 % 
 % % PX = X(:,1:end-1)';
@@ -59,8 +59,8 @@ end
 % disp(["Size PX: " size(PX)])
 % disp(["Size PY: " size(PY)])
 % 
-% PX = X(:,1:end-1)';
-% PY = Y(:,1:end-1)';
+PX = X(:,1:end-1)';
+PY = Y(:,1:end-1)';
 K = PX\PY;
 
 disp(["Norm DMD approximation : " num2str(norm(K,2))])
@@ -83,23 +83,6 @@ ylabel('$\mathrm{Im}(\lambda)$','interpreter','latex','fontsize',18)
 title('Residuals','interpreter','latex','fontsize',18)
 ax=gca; ax.FontSize=18;
 
-% do the same for mpEDMD
-[~,mpV,mpD] = mpEDMDqr(PX,PY,1/M);
-R2 = vecnorm(PY*mpV-PX*mpV*mpD)./vecnorm(PX*mpV);
-
-figure
-scatter(real(diag(mpD)),imag(diag(mpD)),20,R2,'filled','MarkerEdgeColor','k','LineWidth',0.01);
-hold on
-plot(cos(0:0.01:2*pi),sin(0:0.01:2*pi),'-m')
-axis equal
-axis([-1.15,1.15,-1.15,1.15])
-load('cmap.mat')
-colormap(cmap2); colorbar
-xlabel('$\mathrm{Re}(\lambda)$','interpreter','latex','fontsize',18)
-ylabel('$\mathrm{Im}(\lambda)$','interpreter','latex','fontsize',18)
-title('Residuals','interpreter','latex','fontsize',18)
-ax=gca; ax.FontSize=18;
-
 % figure
 % loglog([0.001,1],[0.001,1],':k','linewidth',1)
 % hold on
@@ -111,14 +94,14 @@ ax=gca; ax.FontSize=18;
 %% Compute spectral measure
 M = size(PX,1);
 TH2 = -pi:0.005:pi;                     % angles for spectral measure
-epsilon = 0.1;                         % smoothing parameter
-order = 2;                              % order of kernel
+epsilon = 0.05;                         % smoothing parameter
+order = 6;                              % order of kernel
 
-sig = PX(:,n_pendula+1)';
+sig = X(n_pendula+1,1:M);
 sig = sig - mean(sig);
 g_coeffs = PX\transpose(sig); % cofficients of g in dictionary expansion
 
-[~,xi] = riggedDMD(PX,PY,1/M,epsilon,[],[],'order',order,'g_coeffs',g_coeffs,'TH2',TH2);
+[~,xi] = riggedDMD(PX,PY,1/(size(X,2)),epsilon,[],[],'order',order,'g_coeffs',g_coeffs,'TH2',TH2);
 
 figure % spectral measure plot
 plot(TH2,xi,'linewidth',1)

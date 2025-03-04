@@ -1,4 +1,4 @@
-function [X,Y] = generateDataMontecarlo(n_samples, n_pendula, n_steps, h, plb, pub)
+function data = generateDataMontecarlo(n_samples, n_pendula, n_steps, h, plb, pub)
     
     
     % System parameters
@@ -17,13 +17,16 @@ function [X,Y] = generateDataMontecarlo(n_samples, n_pendula, n_steps, h, plb, p
     H = @(z) hamiltonianFunction(n_pendula, lengths, masses, g, z(1:n_pendula), z(n_pendula+1:end));
     
     data = zeros(n_samples, n_steps + 1, 2 * n_pendula);
-    X = zeros(2*n_pendula, n_samples*n_steps);
-    Y = zeros(2*n_pendula, n_samples*n_steps);
+    % X = zeros(2*n_pendula, n_samples*n_steps);
+    % Y = zeros(2*n_pendula, n_samples*n_steps);
 
-    hWaitBar = waitbar(0, 'Processing steps...', 'Name', 'Progress', ...
-                   'CreateCancelBtn', 'setappdata(gcbf, ''canceling'', 1)');
+    % hWaitBar = waitbar(0, 'Processing steps...', 'Name', 'Progress', ...
+    %                'CreateCancelBtn', 'setappdata(gcbf, ''canceling'', 1)');
+    % 
+    % setappdata(hWaitBar, 'canceling', 0); % Add a canceling flag
 
-    setappdata(hWaitBar, 'canceling', 0); % Add a canceling flag
+    pf = parfor_progress(n_samples);
+    pfcleanup = onCleanup(@() delete(pf));
 
     
     for i = 1:n_samples
@@ -35,15 +38,16 @@ function [X,Y] = generateDataMontecarlo(n_samples, n_pendula, n_steps, h, plb, p
                 data(i, :, :) = cc';
             end
         end
-        waitbar(i / n_samples, hWaitBar, sprintf('Generated trajectory %d of %d', i, n_samples));
+        % waitbar(i / n_samples, hWaitBar, sprintf('Generated trajectory %d of %d', i, n_samples));
+        parfor_progress(pf);
     end
 
-    delete(hWaitBar);
+    % delete(hWaitBar);
 
-    for i = 1:n_samples
-        X(:,(i-1)*n_steps + 1:i*n_steps) = squeeze(data(i,1:n_steps,:))';
-        Y(:,(i-1)*n_steps + 1:i*n_steps) = squeeze(data(i,2:n_steps+1,:))';
-    end
+    % for i = 1:n_samples
+    %     X(:,(i-1)*n_steps + 1:i*n_steps) = squeeze(data(i,1:n_steps,:))';
+    %     Y(:,(i-1)*n_steps + 1:i*n_steps) = squeeze(data(i,2:n_steps+1,:))';
+    % end
 end
 
     
