@@ -1,4 +1,4 @@
-function [X, P, H] = rattle_simple_pendulum(dt, T, x0, p0, m, l, g)
+function [X, P, H] = rattle_simple_pendulum(dt, T, x0, p0, m, l, g, number_updates)
     % dt: Time step
     % T: Total simulation time
     % x0: Initial positions (2N x 1)
@@ -12,9 +12,9 @@ function [X, P, H] = rattle_simple_pendulum(dt, T, x0, p0, m, l, g)
     e2 = [0;1];
     
     % Initialize storage
-    X = zeros(2 * N, num_steps+1);
-    P = zeros(2 * N, num_steps+1);
-    H = zeros(1, num_steps+1);
+    X = zeros(2 * N, number_updates+1);
+    P = zeros(2 * N, number_updates+1);
+    H = zeros(1, number_updates+1);
     
     vec_e2 = kron(ones(N,1),e2);
 
@@ -24,166 +24,230 @@ function [X, P, H] = rattle_simple_pendulum(dt, T, x0, p0, m, l, g)
     P(:,1) = p0;
     H(1) = energy(x0,p0);
 
-    % Time-stepping with RATTLE
-    for n = 1:num_steps
-        x = X(:,n);
-        p = P(:,n);
+    for ss = 1:number_updates
+        % Time-stepping with RATTLE
+        
+        x = X(:,ss);
+        p = P(:,ss);
 
-        % disp(['n: ' num2str(100*n/num_steps) '%'])
-
-        %p_half_bar = @(lam) p - dt/2 * x * lam - dt/2 * g * m * e2;
-        %x_new = @(lam) x + dt * p_half_bar(lam)/m;
-
-        %x_update = x + dt * p/m - dt^2/2 * g * vec_e2;
-        p_mid = p - dt/2 * m * g * vec_e2;
-        x_update = x + dt/m * p_mid;
-        tol = 1e-14;
-
-        constraints_q = zeros(N,1);
-        for i = 1:N
-            if i==1
-                constraints_q(1) = l^2-norm(x_update(1:2))^2;
-            else
-                constraints_q(i) = l^2-norm(x_update(2*i-1:2*i) - x_update(2*i-3:2*i-2))^2;
-            end
-        end
-
-        it = 1;
-        max_it = 1000;
-        while norm(constraints_q,'inf')>tol && it<max_it
-            for i = 1:N
-
-                if i==1 && abs(constraints_q(1))>tol
-
-                    lambda_1 = m/(dt^2) * constraints_q(1) / sum(x_update(1:2).*x(1:2));
-                    x_update(1:2) = x_update(1:2) + dt^2/(2*m)*x(1:2)*lambda_1;
-                    p_mid(1:2) = p_mid(1:2) + dt/2*x(1:2)*lambda_1;
-                    constraints_q(1) = l^2-norm(x_update(1:2))^2;
-                    
-                end
+        for n = 1:num_steps
             
-                if i>1 && abs(constraints_q(i))>tol
-                    lambda_i = m/(2*dt^2) * constraints_q(i) / sum((x_update(2*i-3:2*i-2)-x_update(2*i-1:2*i)).*(x(2*i-3:2*i-2)-x(2*i-1:2*i)));                    
-                 
-                    x_update(2*i-1:2*i) = x_update(2*i-1:2*i) + dt^2/(2*m)*(x(2*i-1:2*i)-x(2*i-3:2*i-2))*lambda_i;
-                    x_update(2*i-3:2*i-2) = x_update(2*i-3:2*i-2) - dt^2/(2*m)*(x(2*i-1:2*i)-x(2*i-3:2*i-2))*lambda_i;
-                    
-                    p_mid(2*i-1:2*i) = p_mid(2*i-1:2*i) + dt/2*(x(2*i-1:2*i)-x(2*i-3:2*i-2))*lambda_i;
-                    p_mid(2*i-3:2*i-2) = p_mid(2*i-3:2*i-2) - dt/2*(x(2*i-1:2*i)-x(2*i-3:2*i-2))*lambda_i;
-
-                    constraints_q(i) = l^2-norm(x_update(2*i-3:2*i-2)-x_update(2*i-1:2*i))^2;
-                end
-            end
-
-            it = it + 1;
-        end
-
-        %p_mid = m*(x_update - x) / dt; %p - dt/2 * m * g * vec_e2 - dt/2 * G' * lambda;
-        p_update = p_mid - dt/2 * m * g * vec_e2;
-
-        constraints_p = zeros(N,1);
-        for i = 1:N
-            if i==1
-                constraints_p(1) = sum(p_update(1:2).*x_update(1:2));
+    
+            % disp(['n: ' num2str(100*n/num_steps) '%'])
+    
+            %p_half_bar = @(lam) p - dt/2 * x * lam - dt/2 * g * m * e2;
+            %x_new = @(lam) x + dt * p_half_bar(lam)/m;
+    
+            %x_update = x + dt * p/m - dt^2/2 * g * vec_e2;
+            p_mid = p - dt/2 * m * g * vec_e2;
+            x_update = x + dt/m * p_mid;
+            tol = 1e-14;
+    
+            %Build constraints in q
+            constraints_q = zeros(N,1);
+            if N > 1
+                temp_x = reshape(x_update, 2, N).';
+                constraints_q(1) = l^2 - sum(temp_x(1,:).^2);
+                diff_x = temp_x(2:end,:) - temp_x(1:end-1,:);
+                constraints_q(2:end) = l^2 - sum(diff_x.^2, 2);
             else
-                constraints_p(i) = sum((p_update(2*i-3:2*i-2)-p_update(2*i-1:2*i)).*(x_update(2*i-3:2*i-2)-x_update(2*i-1:2*i)));
+                constraints_q(1) = l^2 - sum(x_update(1:2).^2);
             end
-        end
-
-        it = 1;
-        max_it = 1000;
-        while norm(constraints_p,'inf')>tol && it<max_it
-
-            for i = 1:N
+    
+            it = 1;
+            max_it = 1000;
+            while norm(constraints_q,'inf')>tol && it<max_it
+                for i = 1:N
+    
+                    if i==1 && abs(constraints_q(1))>tol
+    
+                        lambda_1 = m/(dt^2) * constraints_q(1) / sum(x_update(1:2).*x(1:2));
+                        x_update(1:2) = x_update(1:2) + dt^2/(2*m)*x(1:2)*lambda_1;
+                        p_mid(1:2) = p_mid(1:2) + dt/2*x(1:2)*lambda_1;
+                        constraints_q(1) = l^2-norm(x_update(1:2))^2;
+                        
+                    end
                 
-                if i==1 && abs(constraints_p(i))>tol
-                    p_mid1 = p_update(1:2);
-                    q_new_1 = x_update(1:2);
-                    mu_1 = m/dt * constraints_p(1) / l^2;
-                    p_mid1 = p_mid1 - dt/2 * mu_1 * q_new_1;
-                    constraints_p(i) = sum(p_mid1.*q_new_1);
-                    p_update(1:2) = p_mid1;
+                    if i>1 && abs(constraints_q(i))>tol
+                        lambda_i = m/(2*dt^2) * constraints_q(i) / sum((x_update(2*i-3:2*i-2)-x_update(2*i-1:2*i)).*(x(2*i-3:2*i-2)-x(2*i-1:2*i)));                    
+                     
+                        x_update(2*i-1:2*i) = x_update(2*i-1:2*i) + dt^2/(2*m)*(x(2*i-1:2*i)-x(2*i-3:2*i-2))*lambda_i;
+                        x_update(2*i-3:2*i-2) = x_update(2*i-3:2*i-2) - dt^2/(2*m)*(x(2*i-1:2*i)-x(2*i-3:2*i-2))*lambda_i;
+                        
+                        p_mid(2*i-1:2*i) = p_mid(2*i-1:2*i) + dt/2*(x(2*i-1:2*i)-x(2*i-3:2*i-2))*lambda_i;
+                        p_mid(2*i-3:2*i-2) = p_mid(2*i-3:2*i-2) - dt/2*(x(2*i-1:2*i)-x(2*i-3:2*i-2))*lambda_i;
+    
+                        constraints_q(i) = l^2-norm(x_update(2*i-3:2*i-2)-x_update(2*i-1:2*i))^2;
+                    end
                 end
+    
+                it = it + 1;
 
-                if i>1 && abs(constraints_p(i))>tol
-                    pi = p_update(2*i-1:2*i);
-                    pi1 = p_update(2*i-3:2*i-2);
-                    qi = x_update(2*i-1:2*i); %old points
-                    qi1 = x_update(2*i-3:2*i-2); %old points
-
-                    mu_i = m/dt * constraints_p(i) / l^2;
-                    pi = pi - dt/2 * (qi-qi1) * mu_i;
-                    pi1 = pi1 + dt/2 * (qi-qi1) * mu_i;
-
-                    constraints_p(i) = sum((pi1-pi).*(qi1-qi));
-                    p_update(2*i-1:2*i) = pi;
-                    p_update(2*i-3:2*i-2) = pi1;
+                %Since some constraints might be skipped it is important to
+                %update them all at the end since some entries of the
+                %solution are updated but the respective constraints are not.
+                if N > 1
+                    temp_x = reshape(x_update, 2, N).';
+                    constraints_q(1) = l^2 - sum(temp_x(1,:).^2);
+                    diff_x = temp_x(2:end,:) - temp_x(1:end-1,:);
+                    constraints_q(2:end) = l^2 - sum(diff_x.^2, 2);
+                else
+                    constraints_q(1) = l^2 - sum(x_update(1:2).^2);
                 end
             end
-            it = it + 1;
+    
+            %p_mid = m*(x_update - x) / dt; %p - dt/2 * m * g * vec_e2 - dt/2 * G' * lambda;
+            p_update = p_mid - dt/2 * m * g * vec_e2;
+    
+            %Assemble constraints in p
+            constraints_p = zeros(N,1);
+            if N>1
+                temp_p = reshape(p_update, 2, N).';  % size N x 2
+                temp_x = reshape(x_update, 2, N).';  % size N x 2
+                constraints_p(1) = sum( temp_p(1,:) .* temp_x(1,:) ) / m;
+                dp = temp_p(1:end-1,:) - temp_p(2:end,:);
+                dx = temp_x(1:end-1,:) - temp_x(2:end,:);
+                constraints_p(2:end) = sum(dp .* dx, 2) / m;
+            else
+                constraints_p(1) = sum(p_update(1:2) .* x_update(1:2)) / m;
+            end
+
+
+            it = 1;
+            max_it = 1000;
+            while norm(constraints_p,'inf')>tol && it<max_it
+    
+                for i = 1:N
+                    
+                    if i==1 && abs(constraints_p(i))>tol
+                        p_mid1 = p_update(1:2);
+                        q_new_1 = x_update(1:2);
+                        mu_1 = 2*m/dt * constraints_p(1) / l^2;
+                        p_mid1 = p_mid1 - dt/2 * mu_1 * q_new_1;
+                        constraints_p(i) = sum(p_mid1/m.*q_new_1);
+                        p_update(1:2) = p_mid1;
+                    end
+    
+                    if i>1 && abs(constraints_p(i))>tol
+                        pi = p_update(2*i-1:2*i);
+                        pi1 = p_update(2*i-3:2*i-2);
+                        qi = x_update(2*i-1:2*i); 
+                        qi1 = x_update(2*i-3:2*i-2); 
+    
+                        mu_i = m/dt * constraints_p(i) / l^2;
+                        pi = pi - dt/2 * (qi-qi1) * mu_i;
+                        pi1 = pi1 + dt/2 * (qi-qi1) * mu_i;
+    
+                        constraints_p(i) = sum((pi1/m-pi/m).*(qi1-qi));
+                        p_update(2*i-1:2*i) = pi;
+                        p_update(2*i-3:2*i-2) = pi1;
+                    end
+
+                end
+                it = it + 1;
+                %Update constraints in p
+                if N>1
+                    temp_p = reshape(p_update, 2, N).';  % size N x 2
+                    temp_x = reshape(x_update, 2, N).';  % size N x 2
+                    constraints_p(1) = sum( temp_p(1,:) .* temp_x(1,:) ) / m;
+                    dp = temp_p(1:end-1,:) - temp_p(2:end,:);
+                    dx = temp_x(1:end-1,:) - temp_x(2:end,:);
+                    constraints_p(2:end) = sum(dp .* dx, 2) / m;
+                else
+                    constraints_p(1) = sum(p_update(1:2) .* x_update(1:2)) / m;
+                end
+            end
+    
+            % disp("==== CHECK CONSTRAINTS =====")
+            % disp(['ref length is ' num2str(l)])
+            % for i = 1:N
+            %     if i==1
+            %         disp(['i: ' num2str(i)])
+            %         disp(['length ' num2str(norm(x_update(1:2))^2-l^2)]);
+            %         disp(['tangent ' num2str(sum(x_update(1:2).*p_update(1:2)))]);
+            %     else
+            %         disp(['i: ' num2str(i)])
+            %         disp(['computed length ' num2str(norm(x_update(2*i-3:2*i-2) - x_update(2*i-1:2*i)))])
+            %         disp(['length ' num2str(norm(x_update(2*i-3:2*i-2) - x_update(2*i-1:2*i))^2-l^2)]);
+            %         disp(['tangent ' num2str(sum((p_update(2*i-3:2*i-2)-p_update(2*i-1:2*i)).*(x_update(2*i-3:2*i-2)-x_update(2*i-1:2*i))))]);
+            %     end
+            % end
+            % disp("==== END OF THE CHECK ====")
+            
+            % Store results
+            %X(:,n+1) = x_update;
+            %P(:,n+1) = p_update;
+            %H(n+1) = energy(x_update,p_update);
+            x = x_update;
+            p = p_update;
         end
-
-        % disp("==== CHECK CONSTRAINTS =====")
-        % disp(['ref length is ' num2str(l)])
-        % for i = 1:N
-        %     if i==1
-        %         disp(['i: ' num2str(i)])
-        %         disp(['length ' num2str(norm(x_update(1:2))^2-l^2)]);
-        %         disp(['tangent ' num2str(sum(x_update(1:2).*p_update(1:2)))]);
-        %     else
-        %         disp(['i: ' num2str(i)])
-        %         disp(['computed length ' num2str(norm(x_update(2*i-3:2*i-2) - x_update(2*i-1:2*i)))])
-        %         disp(['length ' num2str(norm(x_update(2*i-3:2*i-2) - x_update(2*i-1:2*i))^2-l^2)]);
-        %         disp(['tangent ' num2str(sum((p_update(2*i-3:2*i-2)-p_update(2*i-1:2*i)).*(x_update(2*i-3:2*i-2)-x_update(2*i-1:2*i))))]);
-        %     end
-        % end
-        % disp("==== END OF THE CHECK ====")
-
-        % Store results
-        X(:,n+1) = x_update;
-        P(:,n+1) = p_update;
-        H(n+1) = energy(x_update,p_update);
+        X(:,ss+1) = x;
+        P(:,ss+1) = p;
+        H(ss+1) = energy(x,p);
     end
 end
 
+clc;
+clear all;
+close all;
+
 % Simulation setup
-N = 5;
+N = 1;
 L = 1;
 M = 1;
 g = 9.81;
-dt = 5e-4;
+dt = 5e-3;
 T = 0.05; %floor(final/dt)*dt;
 l = L / N; %* ones(N, 1);
 m = M / N; %* ones(N, 1);
 
-number_samples = 100;
+number_samples = 5000;
+number_steps = 100;
 
-X_data = zeros(4*N,number_samples);
-Y_data = zeros(4*N,number_samples);
+X_data = zeros(4*N,number_samples,number_steps);
+Y_data = zeros(4*N,number_samples,number_steps);
+H_data = zeros(number_samples,number_steps+1);
+t0 = 0;
+tf = number_steps * T;
+n_steps = number_steps;
+
+tic
 
 for it = 1:number_samples
-
-    %qq = 2*rand(N,2)-1;
-    %qq = l * (qq ./ vecnorm(qq,2,2)); %l2 norm row-wise
-    %qq = cumsum(qq,1);
-    %qq = reshape(qq.',1,[])'; %write as a single column stacking the rows
-    
-    %pp = zeros(2*N,1);
-    %J = randn(2,2);
-    %J = (J-J')/2;
-    %pp(1:2) = J * qq(1:2);
-    %for i = 1:N-1
+    %disp(['it' num2str(it)])
+    % qq = 2*rand(N,2)-1;
+    % qq = l * (qq ./ vecnorm(qq,2,2)); %l2 norm row-wise
+    % qq = cumsum(qq,1);
+    % qq = reshape(qq.',1,[])'; %write as a single column stacking the rows
+    % 
+    % pp = zeros(2*N,1);
+    % J = randn(2,2);
+    % J = (J-J')/2;
+    % pp(1:2) = J * qq(1:2);
+    % for i = 1:N-1
     %    J = randn(2,2);
     %    J = (J-J')/2;
     %    v = (qq(2*i+1:2*i+2) - qq(2*i-1:2*i));
-    
+    % 
     %    pp(2*i+1:2*i+2) = J * v + pp(2*i-1:2*i);
-    %end
+    % end
 
     theta = 2*pi*rand(N,1);
     omega = 2*rand(N,1)-1;
-    qq = cumsum(l*[sin(theta),-cos(theta)])';
-    pp = m * cumsum(l*[omega .* cos(theta), omega .* sin(theta)])';
+    qq = l*[sin(theta),-cos(theta)];
+    qq = cumsum(qq,1);
+    qq = reshape(qq.',1,[]);
+    pp = [omega .* cos(theta), omega .* sin(theta)];
+    pp = cumsum(pp,1);
+    pp = reshape(pp.',1,[]);
+
+    % ic = sampxleICs(1, n_pendula, plb, pub); % Sample n_samples ICs
+    % disp(['ic' num2str(ic)])
+    % [implicit_mp_sol, ~, is_not_converged] = implicit_midpoint_solver(XH, H, ic', t0, tf, n_steps);
+    % theta = ic(1);
+    % omega = ic(2);
+    % qq = (l*[sin(theta),-cos(theta)])';
+    % pp = m * cumsum(l*[omega .* cos(theta), omega .* sin(theta)])';
 
     qq = qq(:);
     pp = pp(:);
@@ -198,11 +262,11 @@ for it = 1:number_samples
     % e2 = [0;1];
     % vec_e2 = kron(ones(N,1),e2);
     % energy = @(u,v) sum(v.*v)/(2*m) + m*g*sum(vec_e2.*u);
-    % E0 = energy(x0,p0);
+    % E0 = energy(qq,pp);
     % v_star = sqrt(2*E0/m);
     % dt = l / (5*v_star);
     % disp(['dt' num2str(dt)])
-    
+    % 
     % disp("==== CHECK CONSTRAINTS =====")
     % disp(['ref length is ' num2str(l)])
     % for i = 1:N
@@ -221,17 +285,27 @@ for it = 1:number_samples
     
     % Run simulation
     tic
-    [X, P, H] = rattle_simple_pendulum(dt, T, qq, pp, m, l, g);
+    disp(qq)
+    [X, P, H] = rattle_simple_pendulum(dt, T, qq, pp, m, l, g, number_steps);
+    %disp(['X: ' num2str(size(X))])
     toc
     disp(['progress bar: ' num2str(100*it/number_samples) '%'])
-    X_data(:,it) = [X(:,1);P(:,1)];
-    Y_data(:,it) = [X(:,end);P(:,end)];
+    X_data(:,it,:) = [X(:,1:end-1);P(:,1:end-1)];
+    Y_data(:,it,:) = [X(:,2:end);P(:,2:end)];
+    H_data(it,1:end) = H;
 end
 
-filename = sprintf('X_data_%d_pendula_%d_samples.csv', N,number_samples);
-writematrix(X_data, filename);
-filename = sprintf('Y_data_%d_pendula_%d_samples.csv', N,number_samples);
-writematrix(Y_data, filename);
+toc
+
+X_data_2d = reshape(X_data, 4*N, []);  % Resulting size: (4*N) x (number_samples*number_steps)
+Y_data_2d = reshape(Y_data, 4*N, []);
+
+filename = sprintf('X_data_%d_pendula_%d_samples_%d_steps.csv', N,number_samples,number_steps);
+writematrix(X_data_2d, filename);
+filename = sprintf('Y_data_%d_pendula_%d_samples_%d_steps.csv', N,number_samples,number_steps);
+writematrix(Y_data_2d, filename);
+filename = sprintf('H_data_%d_pendula_%d_samples_%d_steps.csv', N,number_samples,number_steps);
+writematrix(H_data, filename);
 
 % % Plot results
 % figure;
