@@ -3,7 +3,7 @@ addpath('scripts');
 % n_samples = 1000;
 % n_pendula = 1;
 % n_steps = 1;
-h = 0.1; %to generate a data point the method will do floor(h/0.01) substeps
+h = 0.05; %to generate a data point the method will do floor(h/0.01) substeps
 plb = -2; %Lower bound for the interval where momenta are sampled
 pub = 2; %Upper bound for the interval where momenta are sampled
 % 
@@ -11,17 +11,20 @@ pub = 2; %Upper bound for the interval where momenta are sampled
 % %X = sol_trpz(:,1:3000);
 % %Y = sol_trpz(:,2:3001);
 
-n_pendula = 3;
-n_samples = 5000;
-n_steps = 5;
+n_pendula = 1;
+n_samples = 40000;
+n_steps = 200;
 
-data =generateDataMontecarlo(n_samples, n_pendula, n_steps, h, plb, pub);
+%data = generateDataMontecarlo(n_samples, n_pendula, n_steps, h, plb, pub);
 % return
 
-% filename = sprintf('X_data_%d_pendula_%d_samples.csv', n_pendula, n_samples); % if N is defined
-% X = readmatrix(filename);
-% filename = sprintf('Y_data_%d_pendula_%d_samples.csv', n_pendula, n_samples); % if N is defined
-% Y = readmatrix(filename);
+filename = sprintf('X_data_%d_pendula_%d_samples_%d_steps.csv', n_pendula,n_samples,n_steps);
+X_2d = readmatrix(filename);
+filename = sprintf('Y_data_%d_pendula_%d_samples_%d_steps.csv', n_pendula,n_samples,n_steps);
+Y_2d = readmatrix(filename);
+
+X = reshape(X_2d, 4*n_pendula, n_samples, n_steps);
+Y = reshape(Y_2d, 4*n_pendula, n_samples, n_steps);
 
 % idx = max(abs(Y), [], 1) < 10 & ~any(isnan(Y), 1); %I am using this as a
 % criterion for a converged solution % this will be hard with delay
@@ -43,15 +46,20 @@ data =generateDataMontecarlo(n_samples, n_pendula, n_steps, h, plb, pub);
 %% Build matrix using delay embedding
 N = n_steps; % number of basis functions
 M = n_samples; % number of data points
-dim_sol = 2*n_pendula;
+dim_sol = 4*n_pendula; %2*n_pendula;
 PX = zeros(M,N*dim_sol);
 PY = zeros(M,N*dim_sol);
 % h = 1; % number of time steps for delay
 % data = zeros(n_samples, n_steps + 1, 2 * n_pendula);
 for jj= 1:N
-    PX(:,(jj-1)*dim_sol+1:jj*dim_sol) = squeeze(data(:,jj,:));
-    PY(:,(jj-1)*dim_sol+1:jj*dim_sol) = squeeze(data(:,jj+1,:));
+    PX(:,(jj-1)*dim_sol+1:jj*dim_sol) = X(:,:,jj)';
+    %PX(:,(jj-1)*dim_sol+1:jj*dim_sol) = squeeze(data(:,jj,:));
+    PY(:,(jj-1)*dim_sol+1:jj*dim_sol) = Y(:,:,jj)';
+    %PY(:,(jj-1)*dim_sol+1:jj*dim_sol) = squeeze(data(:,jj+1,:));
 end
+
+disp(["PX: " num2str(size(PX))])
+
 % 
 % % PX = X(:,1:end-1)';
 % % PY = Y(:,1:end-1)';
